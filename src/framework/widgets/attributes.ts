@@ -20,9 +20,7 @@ export function htmlAttributes(widgetContext: WidgetContext<any>, error: string 
             attributes["data-sfemptyicon"] = editorMetadata.EmptyIcon;
         }
 
-        if (editorMetadata.EmptyIconAction) {
-            attributes["data-sfemptyiconaction"] = editorMetadata.EmptyIconAction;
-        }
+        attributes["data-sfemptyiconaction"] = editorMetadata.EmptyIconAction || "Edit";
 
         if (editorMetadata.EmptyIconText) {
             attributes["data-sfemptyicontext"] = editorMetadata.EmptyIconText;
@@ -33,7 +31,6 @@ export function htmlAttributes(widgetContext: WidgetContext<any>, error: string 
     attributes["data-sfisemptyvisualhidden"] = false;
     attributes["data-sfisempty"] = false;
     attributes["draggable"] = true;
-    attributes["data-sfhasquickeditoperation"] = true;
 
     if (error) {
         attributes["data-sferror"] = error;
