@@ -11,5 +11,5 @@ export interface ContentContext {
 export interface ContentVariation {
     Source: string;
     Filter: { Key: string, Value: string };
-    DynamicFilterByParent: boolean;
+    DynamicFilterByParent?: boolean;
 }

@@ -84,7 +84,9 @@ export class RestService {
 
     private static getSimpleFields(type: string, fields: string[]): string[] {
         let star = '*';
-        if (fields != null && fields.length === 1 && fields[0] === star) {return [star];}
+        if (fields != null && fields.length === 1 && fields[0] === star) {
+            return [star];
+        }
 
         let simpleFields = ServiceMetadata.getSimpleFields(type);
         return fields.filter(x => simpleFields.some(y => y === x));
@@ -92,7 +94,9 @@ export class RestService {
 
     private static getRelatedFields(type: string, fields: string[]): string[] {
         let star = '*';
-        if (fields != null && fields.length === 1 && fields[0] === star) {return [star];}
+        if (fields != null && fields.length === 1 && fields[0] === star) {
+            return [star];
+        }
 
         const result: string[] = [];
         const relatedFields = ServiceMetadata.getRelationFields(type);
@@ -134,7 +138,9 @@ export class RestService {
                             resultString = `${fieldName}(${simpleFieldsJoined})`;
                         }
 
-                        if (resultString) {result.push(resultString);}
+                        if (resultString) {
+                            result.push(resultString);
+                        }
                     }
                 }
             }
@@ -154,9 +160,13 @@ export class RestService {
         for (let i = 0; i < input.length; i++) {
             charIterator++;
             const character = input[i];
-            if (character === '(') {openingBraceCounter++;}
+            if (character === '(') {
+                openingBraceCounter++;
+            }
 
-            if (character === ')') {closingBraceCounter++;}
+            if (character === ')') {
+                closingBraceCounter++;
+            }
 
             if (character === ',') {
                 if (openingBraceCounter > 0 && openingBraceCounter === closingBraceCounter) {
@@ -185,7 +195,9 @@ export class RestService {
         let result = '';
         Object.keys(queryParams).forEach((key) => {
             const value = queryParams[key];
-            if (value) {result += `${key}=${value}&`;}
+            if (value) {
+                result += `${key}=${value}&`;
+            }
         });
 
         if (result !== '') {
