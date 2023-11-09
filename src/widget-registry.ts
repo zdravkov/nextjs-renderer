@@ -52,7 +52,7 @@ export const widgetRegistry: WidgetRegistry = {
             designerMetadata: sitefinityLoginFormJson,
             componentType: LoginForm,
             editorMetadata: {
-                Title: 'LoginForm'
+                Title: 'Login form'
             },
             ssr: true
         },

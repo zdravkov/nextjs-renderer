@@ -1,11 +1,11 @@
 export interface MixedContentContext {
-    ItemIdsOrdered: string[],
+    ItemIdsOrdered: string[] | null,
     Content: ContentContext[]
 }
 
 export interface ContentContext {
     Type: string;
-    Variations: ContentVariation[]
+    Variations: ContentVariation[] | null
 }
 
 export interface ContentVariation {
