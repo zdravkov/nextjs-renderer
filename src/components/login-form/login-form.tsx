@@ -14,6 +14,7 @@ import { MixedContentContext } from 'sitefinity-react-framework/widgets/entities
 import { ExternalLoginBase } from 'sitefinity-react-framework/login/external-login-base';
 import { ExternalProvider } from 'sitefinity-react-framework/sdk/dto/external-provider';
 import { CollectionResponse } from 'sitefinity-react-framework/sdk/dto/collection-response';
+import { FormContainer } from './form-container';
 
 const defaultMixedContent = {
     ItemIdsOrdered:null,
@@ -22,7 +23,6 @@ const defaultMixedContent = {
         Variations:null
     }]
 };
-
 
 export async function LoginForm(props: WidgetContext<LoginFormEntity>) {
     const entity = {
@@ -45,10 +45,7 @@ export async function LoginForm(props: WidgetContext<LoginFormEntity>) {
         ...props.model.Properties
     };
     const context = props.requestContext;
-    // console.log('context', context);
-   // console.log('entity', entity);
     const dataAttributes = htmlAttributes(props);
-
     const defaultClass =  entity.CssClass;
     const marginClass = entity.Margins && StyleGenerator.getMarginClasses(entity.Margins);
 
@@ -135,73 +132,22 @@ if (resetPasswordVariations && resetPasswordVariations.length !== 0){
     }
 }
 
-// this.httpContextAccessor.HttpContext.AddVaryByQueryParams(ExternalLoginBase.ErrorQueryKey);
-// if (viewModel.IsError(this.httpContextAccessor.HttpContext))
-// {
-//     this.httpContextAccessor.HttpContext.DisableCache();
-// }
 const labels = viewModel.Labels;
-const returnUrl = viewModel.RedirectUrl ?? ExternalLoginBase.GetDefaultReturnUrl(context);
-const returnErrorUrl = ExternalLoginBase.GetDefaultReturnUrl(context, {isError:true, shouldEncode:false});
-
 const usernameInputId = getUniqueId('sf-username-');
 const passwordInputId = getUniqueId('sf-password-');
 const rememberInputId = getUniqueId('sf-rememeber-');
-const passResetColumnSize = viewModel.RememberMe ? 'col-md-6 text-end' : 'col-12';
+
     return (
       <div
         {...dataAttributes}
       //  {...wrapperCustomAttributes}
         >
-        <div data-sf-role="form-container">
-          <h2 className="mb-3">{labels.Header}</h2>
-          <div id="errorContainer"
-            className={`alert alert-danger my-3 ${ExternalLoginBase.isError(context) ? 'd-block' : 'd-none'}`}
-            role="alert" aria-live="assertive" data-sf-role="error-message-container">{labels.ErrorMessage}</div>
-          <form action={viewModel.LoginHandlerPath} method="post" role="form" noValidate={true}>
-            <div className="mb-3">
-              <label htmlFor={usernameInputId} className="form-label">{labels.EmailLabel}</label>
-              <input type="email" className="form-control" id={usernameInputId} name="username" data-sf-role="required" />
-            </div>
-            <div className="mb-3">
-              <label htmlFor={passwordInputId} className="form-label">{labels.PasswordLabel}</label>
-              <input type="password" className="form-control" id={passwordInputId} name="password" data-sf-role="required"
-                autoComplete="on" />
-            </div>
-            {(viewModel.RememberMe !== undefined || viewModel.ForgottenPasswordLink) &&
-            <div className="row mb-3">
-              {viewModel.RememberMe !== undefined &&
-              <div className="checkbox col-md-6 m-0">
-                <label>
-                  <input defaultChecked={viewModel.RememberMe} data-val="true" data-val-required="The RememberMe field is required." id={rememberInputId}
-                    name="RememberMe" type="checkbox" defaultValue={viewModel.RememberMe} />
-                  <label htmlFor={rememberInputId}>{labels.RememberMeLabel}</label>
-                </label>
-              </div>
-                    }
 
-              {viewModel.ForgottenPasswordLink &&
-
-              <div className={passResetColumnSize}>
-                <a href={viewModel.ForgottenPasswordLink}
-                  className="text-decoration-none">{labels.ForgottenPasswordLinkLabel}</a>
-              </div>
-                    }
-            </div>
-            }
-
-            <input type="hidden" name="RedirectUrl" value={returnUrl} />
-            <input type="hidden" name="ErrorRedirectUrl" value={returnErrorUrl} />
-            <input type="hidden" name="MembershipProviderName" value={viewModel.MembershipProviderName} />
-            <input type="hidden" value="" name="sf_antiforgery" />
-
-            <input className="btn btn-primary w-100" type="submit" value={labels.SubmitButtonLabel} />
-          </form>
-
-          <input type="hidden" name="ValidationInvalidEmailMessage" value={labels.ValidationInvalidEmailMessage} />
-          <input type="hidden" name="ValidationRequiredMessage" value={labels.ValidationRequiredMessage} />
-        </div>
-
+        <FormContainer viewModel={viewModel} context={context}
+          usernameInputId={usernameInputId}
+          passwordInputId={passwordInputId}
+          rememberInputId={rememberInputId}
+             />
         {viewModel.RegistrationLink &&
         <div className="row mt-3">
           <div className="col-md-6">{labels.NotRegisteredLabel}</div>
