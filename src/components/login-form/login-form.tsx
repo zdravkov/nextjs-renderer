@@ -53,8 +53,8 @@ export async function LoginForm(props: WidgetContext<LoginFormEntity>) {
         defaultClass,
         marginClass
         );
-    // dataAttributes['data-sfemptyicontext'] = 'Create call to action';
-    // dataAttributes['data-sfhasquickeditoperation'] = true;
+    dataAttributes['data-sfemptyiconaction'] = 'Edit';
+    dataAttributes['data-sfhasquickeditoperation'] = true;
 
     const viewModel: any = {
         LoginHandlerPath: '/sitefinity/login-handler',
@@ -140,9 +140,7 @@ const rememberInputId = getUniqueId('sf-rememeber-');
     return (
       <div
         {...dataAttributes}
-      //  {...wrapperCustomAttributes}
         >
-
         <FormContainer viewModel={viewModel} context={context}
           usernameInputId={usernameInputId}
           passwordInputId={passwordInputId}
@@ -187,18 +185,16 @@ export class LoginFormEntity {
     ExternalProviders?: string[];
     SfViewName?: string;
     MembershipProviderName?: string;
-    Header?: string; // 'Login'
-    EmailLabel?: string; // 'Email / Username'
-    PasswordLabel?: string; // 'Password'
-    SubmitButtonLabel?: string; // 'Log in'
-    ErrorMessage?: string; // 'Incorrect credentials.'
-    RememberMeLabel?: string; // 'Remember me'
-    ForgottenPasswordLinkLabel?: string; // 'Forgotten password'
-    NotRegisteredLabel?: string; // 'Not registered yet?'
-    RegisterLinkText?: string; // 'Register now'
-    ExternalProvidersHeader?: string; // 'or use account in...'
-    ValidationRequiredMessage?: string; // 'All fields are required.'
-    ValidationInvalidEmailMessage?: string; // 'Invalid email format.'
-    // private const string SelectPages = "Select pages";
-    // private const string LoginWithExternalProviders = "Login with external providers";
+    Header?: string;
+    EmailLabel?: string;
+    PasswordLabel?: string;
+    SubmitButtonLabel?: string;
+    ErrorMessage?: string;
+    RememberMeLabel?: string;
+    ForgottenPasswordLinkLabel?: string;
+    NotRegisteredLabel?: string;
+    RegisterLinkText?: string;
+    ExternalProvidersHeader?: string;
+    ValidationRequiredMessage?: string;
+    ValidationInvalidEmailMessage?: string;
 }
