@@ -68,8 +68,8 @@ export async function ChangePassword(props: WidgetContext<ChangePasswordEntity>)
         const argsLocal = {
             Name: 'Default.GetExternalProviders'
         };
-        const externalProviders: CollectionResponse<ExternalProvider> = await RestService.getUnboundType(argsLocal);
-        viewModel.ExternalProviders = externalProviders.Items.filter(p => entity.ExternalProviders?.indexOf(p.Name) !== -1);
+        const externalProviders: any = await RestService.getUnboundType(argsLocal);
+        viewModel.ExternalProviders = externalProviders.value.filter((p: ExternalProvider) => entity.ExternalProviders?.indexOf(p.Name) !== -1);
     }
 
     viewModel.Labels.EmailLabel = entity.EmailLabel;

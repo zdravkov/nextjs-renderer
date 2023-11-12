@@ -4,7 +4,7 @@ import { OffsetStyle } from '../styling/offset-style';
 import { htmlAttributes } from 'sitefinity-react-framework/widgets/attributes';
 import { classNames } from 'sitefinity-react-framework/utils/classNames';
 import { WidgetContext } from 'sitefinity-react-framework/widgets/widget-context';
-import { PostLoginAction } from './interfaces/PostLoginAction';
+import { PostRegistrationAction } from './interfaces/PostRegistrationAction';
 import { StylingConfig } from '../styling/styling-config';
 import { getUniqueId } from 'sitefinity-react-framework/utils/getUniqueId';
 import { RestExtensionsService } from 'sitefinity-react-framework/sdk/rest-extensions';
@@ -13,8 +13,7 @@ import { FilterConverterService } from 'sitefinity-react-framework/sdk/filters/f
 import { MixedContentContext } from 'sitefinity-react-framework/widgets/entities/mixed-content-context';
 import { ExternalLoginBase } from 'sitefinity-react-framework/login/external-login-base';
 import { ExternalProvider } from 'sitefinity-react-framework/sdk/dto/external-provider';
-import { CollectionResponse } from 'sitefinity-react-framework/sdk/dto/collection-response';
-import { FormContainer } from './form-container';
+import { RegistrationSettingsDto } from 'sitefinity-react-framework/sdk/dto/registration-settings';
 
 const defaultMixedContent = {
     ItemIdsOrdered:null,
@@ -23,31 +22,76 @@ const defaultMixedContent = {
         Variations:null
     }]
 };
+const EncryptedParam = 'qs';
+const getPageNodeUrl = async (page: MixedContentContext) => {
+    if (!page.Content || page.Content.length) {
+        return '';
+    }
+
+    const variations = page.Content[0].Variations;
+    if (variations && variations.length !== 0){
+        const mainFilter = FilterConverterService.getMainFilter(variations[0]);
+        const pageNodes = await RestExtensionsService.getContextItems(page, {
+            Type: RestSdkTypes.Pages,
+            Fields: ['ViewUrl'],
+            Filter: mainFilter
+        });
+        const items = pageNodes.Items;
+        if (items.length === 1){
+            return  items[0].ViewUrl;
+        }
+    }
+
+    return '';
+};
+
+const isAccountActivationRequest = (context: any) => {
+    if (context.IsLive) {
+        if (context.searchParams[EncryptedParam]) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
 
 export async function Registration(props: WidgetContext<RegistrationEntity>) {
     const entity = {
-        PostLoginRedirectPage: defaultMixedContent,
-        ResetPasswordPage: defaultMixedContent,
-        RegistrationPage: defaultMixedContent,
-        PostLoginAction: 0,
-        Header: 'Login',
-        EmailLabel: 'Email / Username',
+        PostRegistrationRedirectPage: defaultMixedContent,
+        LoginPage: defaultMixedContent,
+        PostRegistrationAction: 0,
+        Header: 'Registration',
+        FirstNameLabel: 'First name',
+        LastNameLabel: 'Last name',
+        EmailLabel: 'Email',
         PasswordLabel: 'Password',
-        SubmitButtonLabel: 'Log in',
-        ErrorMessage: 'Incorrect credentials.',
-        RememberMeLabel: 'Remember me',
-        ForgottenPasswordLinkLabel: 'Forgotten password',
-        NotRegisteredLabel: 'Not registered yet?',
-        RegisterLinkText: 'Register now',
-        ExternalProvidersHeader: 'or use account in...',
+        RepeatPasswordLabel: 'Repeat password',
+        SecretQuestionLabel: 'Secret question',
+        SecretAnswerLabel: 'Secret answer',
+        RegisterButtonLabel: 'Register',
+        ActivationLinkHeader: 'Please check your email',
+        ActivationLinkLabel: 'An activation link has been sent to',
+        SendAgainLink: 'Send again',
+        SendAgainLabel: 'Another activation link has been sent to {0}. If you have not received an email please check your spam box.',
+        SuccessHeader: 'Thank you!',
+        SuccessLabel: 'You are successfully registered.',
+        LoginLabel: 'Already registered?',
+        LoginLink: 'Log in',
+        ExternalProvidersHeader: 'or connect with...',
         ValidationRequiredMessage: 'All fields are required.',
-        ValidationInvalidEmailMessage: 'Invalid email format.',
+        ValidationInvalidEmailMessage: 'Password and repeat password don\'t match.',
+        ValidationMismatchMessage: 'Invalid email format.',
+        ActivationMessage: 'Your account is activated',
+        ActivationFailMessage: 'Your account could not be activated',
         ...props.model.Properties
     };
     const context = props.requestContext;
+
     const dataAttributes = htmlAttributes(props);
     const defaultClass =  entity.CssClass;
-    const marginClass = entity.Margins && StyleGenerator.getMarginClasses(entity.Margins);
+    const marginClass = entity.MarginStyle && StyleGenerator.getMarginClasses(entity.MarginStyle);
+    const webServicePath =  process.env.SF_WEB_SERVICE_PATH;
 
     dataAttributes['className'] = classNames(
         defaultClass,
@@ -57,9 +101,9 @@ export async function Registration(props: WidgetContext<RegistrationEntity>) {
     dataAttributes['data-sfhasquickeditoperation'] = true;
 
     const viewModel: any = {
-        LoginHandlerPath: '/sitefinity/login-handler',
-        RememberMe: entity.RememberMe,
-        MembershipProviderName: entity.MembershipProviderName,
+        RegistrationHandlerPath: `/${webServicePath}/Registration`,
+        ResendConfirmationEmailHandlerPath: `/${webServicePath}/ResendConfirmationEmail`,
+        ExternalLoginHandlerPath: '/sitefinity/external-login-handler',
         Attributes: entity.Attributes,
         Labels: {}
     };
@@ -68,107 +112,181 @@ export async function Registration(props: WidgetContext<RegistrationEntity>) {
         const argsLocal = {
             Name: 'Default.GetExternalProviders'
         };
-        const externalProviders: CollectionResponse<ExternalProvider> = await RestService.getUnboundType(argsLocal);
-        viewModel.ExternalProviders = externalProviders.Items.filter(p => entity.ExternalProviders?.indexOf(p.Name) !== -1);
+        const externalProviders: any = await RestService.getUnboundType(argsLocal);
+        viewModel.ExternalProviders = externalProviders.value.filter((p: ExternalProvider) => entity.ExternalProviders?.indexOf(p.Name) !== -1);
     }
 
-    viewModel.Labels.EmailLabel = entity.EmailLabel;
-    viewModel.Labels.ErrorMessage = entity.ErrorMessage;
-    viewModel.Labels.ExternalProvidersHeader = entity.ExternalProvidersHeader;
-    viewModel.Labels.ForgottenPasswordLinkLabel = entity.ForgottenPasswordLinkLabel;
     viewModel.Labels.Header = entity.Header;
-    viewModel.Labels.NotRegisteredLabel = entity.NotRegisteredLabel;
+    viewModel.Labels.FirstNameLabel = entity.FirstNameLabel;
+    viewModel.Labels.LastNameLabel = entity.LastNameLabel;
+    viewModel.Labels.EmailLabel = entity.EmailLabel;
     viewModel.Labels.PasswordLabel = entity.PasswordLabel;
-    viewModel.Labels.RegisterLinkText = entity.RegisterLinkText;
-    viewModel.Labels.RememberMeLabel = entity.RememberMeLabel;
-    viewModel.Labels.SubmitButtonLabel = entity.SubmitButtonLabel;
-    viewModel.Labels.ValidationInvalidEmailMessage = entity.ValidationInvalidEmailMessage;
+    viewModel.Labels.RepeatPasswordLabel = entity.RepeatPasswordLabel;
+    viewModel.Labels.SecretQuestionLabel = entity.SecretQuestionLabel;
+    viewModel.Labels.SecretAnswerLabel = entity.SecretAnswerLabel;
+    viewModel.Labels.RegisterButtonLabel = entity.RegisterButtonLabel;
+    viewModel.Labels.ActivationLinkHeader = entity.ActivationLinkHeader;
+    viewModel.Labels.ActivationLinkLabel = entity.ActivationLinkLabel;
+    viewModel.Labels.SendAgainLink = entity.SendAgainLink;
+    viewModel.Labels.SendAgainLabel = entity.SendAgainLabel;
+    viewModel.Labels.SuccessHeader = entity.SuccessHeader;
+    viewModel.Labels.SuccessLabel = entity.SuccessLabel;
+    viewModel.Labels.LoginLabel = entity.LoginLabel;
+    viewModel.Labels.LoginLink = entity.LoginLink;
+    viewModel.Labels.ExternalProvidersHeader = entity.ExternalProvidersHeader;
     viewModel.Labels.ValidationRequiredMessage = entity.ValidationRequiredMessage;
+    viewModel.Labels.ValidationMismatchMessage = entity.ValidationMismatchMessage;
+    viewModel.Labels.ValidationInvalidEmailMessage = entity.ValidationInvalidEmailMessage;
     viewModel.VisibilityClasses = StylingConfig.VisibilityClasses;
     viewModel.InvalidClass = StylingConfig.InvalidClass;
 
-    const postLoginRedirectVariations = (entity.PostLoginRedirectPage.Content)[0].Variations;
-    if (entity.PostLoginAction === PostLoginAction.RedirectToPage
-    && postLoginRedirectVariations && postLoginRedirectVariations.length !== 0){
-        const mainFilter = FilterConverterService.getMainFilter(postLoginRedirectVariations[0]);
-        const pageNodes = await RestExtensionsService.getContextItems(entity.PostLoginRedirectPage, {
-            Type: RestSdkTypes.Pages,
-            Fields: ['ViewUrl'],
-            Filter: mainFilter
-        });
-        const items = pageNodes.Items;
-        if (items.length === 1){
-            viewModel.RedirectUrl =  items[0].ViewUrl;
+    viewModel.LoginPageUrl = getPageNodeUrl(entity.LoginPage);
+    if (isAccountActivationRequest(context)) {
+        viewModel.IsAccountActivationRequest = true;
+        viewModel.Labels.ActivationMessage = entity.ActivationMessage;
+
+        try {
+            const encryptedParam = context.searchParams ? context.searchParams[EncryptedParam] : '';
+            const AdditionalQueryParams = encryptedParam ? {
+                [EncryptedParam]: encodeURIComponent(encryptedParam).toString()
+            } : undefined;
+            const argsLocal = {
+                Name: 'Default.RegistrationSettings',
+                AdditionalQueryParams
+            };
+            await RestService.getUnboundType(argsLocal);
+        } catch (ErrorCodeException) {
+            viewModel.Labels.ActivationMessage = entity.ActivationFailMessage;
         }
-    }
-
-    const registrationVariations = (entity.RegistrationPage.Content)[0].Variations;
-    if (registrationVariations && registrationVariations.length !== 0){
-        const mainFilter = FilterConverterService.getMainFilter(registrationVariations[0]);
-        const pageNodes = await RestExtensionsService.getContextItems(entity.RegistrationPage, {
-            Type: RestSdkTypes.Pages,
-            Fields: ['ViewUrl'],
-            Filter: mainFilter
-        });
-
-        const items = pageNodes.Items;
-        if (items.length === 1){
-            viewModel.RegistrationLink =  items[0].ViewUrl;
+    } else {
+        if (entity.PostRegistrationAction === PostRegistrationAction.RedirectToPage) {
+            viewModel.RedirectUrl = getPageNodeUrl(entity.PostRegistrationRedirectPage);
+            viewModel.PostRegistrationAction = PostRegistrationAction.RedirectToPage;
         }
-    }
 
-    const resetPasswordVariations = (entity.RegistrationPage.Content)[0].Variations;
-    if (resetPasswordVariations && resetPasswordVariations.length !== 0){
-        const mainFilter = FilterConverterService.getMainFilter(resetPasswordVariations[0]);
-        const pageNodes = await RestExtensionsService.getContextItems(entity.RegistrationPage, {
-            Type: RestSdkTypes.Pages,
-            Fields: ['ViewUrl'],
-            Filter: mainFilter
-        });
+        const argsLocal = {
+            Name: 'Default.RegistrationSettings'
+        };
+        const result: RegistrationSettingsDto = await RestService.getUnboundType(argsLocal);
 
-        const items = pageNodes.Items;
-        if (items.length === 1){
-            viewModel.ForgottenPasswordLink = items[0].ViewUrl;
+        viewModel.RequiresQuestionAndAnswer = result.RequiresQuestionAndAnswer;
+        viewModel.ActivationMethod = result.ActivationMethod;
+        if (context.isLive) {
+            viewModel.ActivationPageUrl = context.pageNode.MetaInfo.CanonicalUrl;
         }
     }
 
     const labels = viewModel.Labels;
-    const usernameInputId = getUniqueId('sf-username-');
-    const passwordInputId = getUniqueId('sf-password-');
-    const rememberInputId = getUniqueId('sf-rememeber-');
-
+    const firstNameInputId = getUniqueId('sf-first-name-');
+    const lastNameInputId = getUniqueId('sf-last-name-');
+    const emailInputId = getUniqueId('sf-email-');
+    const passwordInputId = getUniqueId('sf-new-password-');
+    const repeatPasswordInputId = getUniqueId('sf-repeat-password-');
+    const questionInputId = getUniqueId('sf-secret-question-');
+    const answerInputId = getUniqueId('sf-secret-answer-');
+    const showSuccessMessage = ExternalLoginBase.ShowSuccessMessage(context);
     return (
       <div
         {...dataAttributes}
         >
-        <FormContainer viewModel={viewModel} context={context}
-          usernameInputId={usernameInputId}
-          passwordInputId={passwordInputId}
-          rememberInputId={rememberInputId}
-             />
-        {viewModel.RegistrationLink &&
-        <div className="row mt-3">
-          <div className="col-md-6">{labels.NotRegisteredLabel}</div>
-          <div className="col-md-6 text-end"><a href={viewModel.RegistrationLink}
-            className="text-decoration-none">{labels.RegisterLinkText}</a></div>
-        </div>
-    }
+        {viewModel.IsAccountActivationRequest && <h2 className="mb-3">
+            {labels.ActivationMessage}
+        </h2>
+        }
+        {showSuccessMessage && <h3>{labels.SuccessHeader}</h3>}
+        {showSuccessMessage && <p>{labels.SuccessLabel}</p>}
+        {
+            !showSuccessMessage &&
+            <>
+              <div data-sf-role="form-container">
+                <h2 className="mb-3">labels.Header</h2>
+                <div data-sf-role="error-message-container" className="alert alert-danger d-none my-3" role="alert" aria-live="assertive" />
+                <form method="post" action={viewModel.RegistrationHandlerPath} role="form" noValidate={true}>
+                  <div className="mb-3">
+                    <label htmlFor={firstNameInputId} className="form-label">{labels.FirstNameLabel}</label>
+                    <input id={firstNameInputId} type="text" className="form-control" name="FirstName" data-sf-role="required"/>
+                  </div>
+                  <div className="mb-3">
+                    <label htmlFor={lastNameInputId} className="form-label">{labels.LastNameLabel}</label>
+                    <input id={lastNameInputId} type="text" className="form-control" name="LastName" data-sf-role="required"/>
+                  </div>
+                  <div className="mb-3">
+                    <label htmlFor={emailInputId} className="form-label">{labels.EmailLabel}</label>
+                    <input id={emailInputId} type="email" className="form-control" name="Email" data-sf-role="required"/>
+                  </div>
+                  <div className="mb-3">
+                    <label htmlFor={passwordInputId} className="form-label">{labels.PasswordLabel}</label>
+                    <input id={passwordInputId} type="password" className="form-control" name="Password" data-sf-role="required"/>
+                  </div>
+                  <div className="mb-3">
+                    <label htmlFor={repeatPasswordInputId} className="form-label">{labels.RepeatPasswordLabel}</label>
+                    <input id={repeatPasswordInputId} type="password" className="form-control" name="RepeatPassword" data-sf-role="required"/>
+                  </div>
 
-        {viewModel.ExternalProviders && viewModel.ExternalProviders.length &&
+                  {viewModel.RequiresQuestionAndAnswer &&
+                  <div className="mb-3">
+                    <label htmlFor={questionInputId} className="form-label">{labels.SecretQuestionLabel}</label>
+                    <input id={questionInputId} type="text" className="form-control" name="Question" data-sf-role="required"/>
+                  </div>
+                    }
+                  {viewModel.RequiresQuestionAndAnswer &&
+                  <div className="mb-3">
+                    <label htmlFor={answerInputId} className="form-label">{labels.SecretAnswerLabel}</label>
+                    <input id={answerInputId} type="text" className="form-control" name="Answer" data-sf-role="required"/>
+                  </div>
+                    }
 
-        [<h3 key={100} className="mt-3">{labels.ExternalProvidersHeader}</h3>,
-            viewModel.ExternalProviders.map((provider: ExternalProvider, idx: number) => {
-                const providerClass = ExternalLoginBase.GetExternalLoginButtonCssClass(provider.Name);
-                const providerHref = ExternalLoginBase.GetExternalLoginPath(context, provider.Name);
+                  <input className="btn btn-primary w-100" type="submit" defaultValue={labels.RegisterButtonLabel} />
 
-                return (
-                  <a key={idx}
-                    className={classNames('btn border fs-5 w-100 mt-2',providerClass)}
-                    href={providerHref}>{provider.Value}</a>
-                );
-            })
-        ]
-    }
+                  <input type="hidden" name="ActivationPageUrl" defaultValue={viewModel.ActivationPageUrl} />
+                </form>
+
+                {viewModel.LoginPageUrl && <div className="mt-3">{labels.LoginLabel}</div>}
+                {viewModel.LoginPageUrl && <a href={viewModel.LoginPageUrl} className="text-decoration-none">{labels.LoginLink}</a>}
+
+                {viewModel.ExternalProviders && viewModel.ExternalProviders.length &&
+
+                    [<h3 key={100} className="mt-3">{labels.ExternalProvidersHeader}</h3>,
+                        viewModel.ExternalProviders.map((provider: ExternalProvider, idx: number) => {
+                            const providerClass = ExternalLoginBase.GetExternalLoginButtonCssClass(provider.Name);
+                            const providerHref = ExternalLoginBase.GetExternalLoginPath(context, provider.Name);
+
+                            return (
+                              <a key={idx}
+                                className={classNames('btn border fs-5 w-100 mt-2',providerClass)}
+                                href={providerHref}>{provider.Value}</a>
+                            );
+                        })
+                    ]
+                }
+
+                <input type="hidden" name="RedirectUrl" defaultValue={viewModel.RedirectUrl} />
+                <input type="hidden" name="PostRegistrationAction" defaultValue={viewModel.PostRegistrationAction} />
+                <input type="hidden" name="ActivationMethod" defaultValue={viewModel.ActivationMethod} />
+                <input type="hidden" name="ValidationRequiredMessage" value={labels.ValidationRequiredMessage} />
+                <input type="hidden" name="ValidationMismatchMessage" value={labels.ValidationMismatchMessage} />
+                <input type="hidden" name="ValidationInvalidEmailMessage" value={labels.ValidationInvalidEmailMessage} />
+              </div>
+
+              <div data-sf-role="success-registration-message-container" className="d-none">
+                <h3>{labels.SuccessHeader}</h3>
+                <p>{labels.SuccessLabel}</p>
+              </div>
+
+              <div data-sf-role="confirm-registration-message-container" className="d-none">
+                <h3>{labels.ActivationLinkHeader}</h3>
+                <p data-sf-role="activation-link-message-container" />
+                <a data-sf-role="sendAgainLink" className="btn btn-primary">
+                  {labels.SendAgainLink}
+                </a>
+
+                <input type="hidden" name="ResendConfirmationEmailUrl" value={viewModel.ResendConfirmationEmailHandlerPath} />
+                <input type="hidden" name="ActivationLinkLabel" value={labels.ActivationLinkLabel} />
+                <input type="hidden" name="SendAgainLink" value={labels.SendAgainLink} />
+                <input type="hidden" name="SendAgainLabel" value={labels.SendAgainLabel} />
+              </div>
+            </>
+        }
       </div>
     );
 }
@@ -176,25 +294,33 @@ export async function Registration(props: WidgetContext<RegistrationEntity>) {
 export class RegistrationEntity {
     Attributes?: any[];
     CssClass?: string;
-    Margins?: OffsetStyle;
-    PostLoginAction?: PostLoginAction;
-    PostLoginRedirectPage?: MixedContentContext;
-    RegistrationPage?: MixedContentContext;
-    ResetPasswordPage?: MixedContentContext;
-    RememberMe?: boolean;
+    MarginStyle?: OffsetStyle;
+    PostRegistrationAction?: PostRegistrationAction;
+    PostRegistrationRedirectPage?: MixedContentContext;
+    LoginPage?: MixedContentContext;
     ExternalProviders?: string[];
     SfViewName?: string;
-    MembershipProviderName?: string;
     Header?: string;
+    FirstNameLabel?: string;
+    LastNameLabel?: string;
     EmailLabel?: string;
     PasswordLabel?: string;
-    SubmitButtonLabel?: string;
-    ErrorMessage?: string;
-    RememberMeLabel?: string;
-    ForgottenPasswordLinkLabel?: string;
-    NotRegisteredLabel?: string;
-    RegisterLinkText?: string;
+    RepeatPasswordLabel?: string;
+    SecretQuestionLabel?: string;
+    SecretAnswerLabel?: string;
+    RegisterButtonLabel?: string;
+    ActivationLinkHeader?: string;
+    ActivationLinkLabel?: string;
+    SendAgainLink?: string;
+    SendAgainLabel?: string;
+    SuccessHeader?: string;
+    SuccessLabel?: string;
+    LoginLabel?: string;
+    LoginLink?: string;
     ExternalProvidersHeader?: string;
     ValidationRequiredMessage?: string;
     ValidationInvalidEmailMessage?: string;
+    ValidationMismatchMessage?: string;
+    ActivationMessage?: string;
+    ActivationFailMessage?: string;
 }
