@@ -23,27 +23,6 @@ const defaultMixedContent = {
     }]
 };
 const EncryptedParam = 'qs';
-const getPageNodeUrl = async (page: MixedContentContext) => {
-    if (!page.Content || page.Content.length) {
-        return '';
-    }
-
-    const variations = page.Content[0].Variations;
-    if (variations && variations.length !== 0){
-        const mainFilter = FilterConverterService.getMainFilter(variations[0]);
-        const pageNodes = await RestExtensionsService.getContextItems(page, {
-            Type: RestSdkTypes.Pages,
-            Fields: ['ViewUrl'],
-            Filter: mainFilter
-        });
-        const items = pageNodes.Items;
-        if (items.length === 1){
-            return  items[0].ViewUrl;
-        }
-    }
-
-    return '';
-};
 
 const isAccountActivationRequest = (context: any) => {
     if (context.IsLive) {
@@ -140,7 +119,7 @@ export async function Registration(props: WidgetContext<RegistrationEntity>) {
     viewModel.VisibilityClasses = StylingConfig.VisibilityClasses;
     viewModel.InvalidClass = StylingConfig.InvalidClass;
 
-    viewModel.LoginPageUrl = getPageNodeUrl(entity.LoginPage);
+    viewModel.LoginPageUrl = RestExtensionsService.getPageNodeUrl(entity.LoginPage);
     if (isAccountActivationRequest(context)) {
         viewModel.IsAccountActivationRequest = true;
         viewModel.Labels.ActivationMessage = entity.ActivationMessage;
@@ -160,7 +139,7 @@ export async function Registration(props: WidgetContext<RegistrationEntity>) {
         }
     } else {
         if (entity.PostRegistrationAction === PostRegistrationAction.RedirectToPage) {
-            viewModel.RedirectUrl = getPageNodeUrl(entity.PostRegistrationRedirectPage);
+            viewModel.RedirectUrl = RestExtensionsService.getPageNodeUrl(entity.PostRegistrationRedirectPage);
             viewModel.PostRegistrationAction = PostRegistrationAction.RedirectToPage;
         }
 

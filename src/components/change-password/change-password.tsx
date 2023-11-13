@@ -4,17 +4,14 @@ import { OffsetStyle } from '../styling/offset-style';
 import { htmlAttributes } from 'sitefinity-react-framework/widgets/attributes';
 import { classNames } from 'sitefinity-react-framework/utils/classNames';
 import { WidgetContext } from 'sitefinity-react-framework/widgets/widget-context';
-import { PostLoginAction } from './interfaces/PostLoginAction';
+import { PostPasswordChangeAction } from './interfaces/PostPasswordChangeAction';
 import { StylingConfig } from '../styling/styling-config';
 import { getUniqueId } from 'sitefinity-react-framework/utils/getUniqueId';
 import { RestExtensionsService } from 'sitefinity-react-framework/sdk/rest-extensions';
 import { RestSdkTypes, RestService } from 'sitefinity-react-framework/sdk/rest-service';
-import { FilterConverterService } from 'sitefinity-react-framework/sdk/filters/filter-converter';
 import { MixedContentContext } from 'sitefinity-react-framework/widgets/entities/mixed-content-context';
-import { ExternalLoginBase } from 'sitefinity-react-framework/login/external-login-base';
-import { ExternalProvider } from 'sitefinity-react-framework/sdk/dto/external-provider';
-import { CollectionResponse } from 'sitefinity-react-framework/sdk/dto/collection-response';
 import { FormContainer } from './form-container';
+import { VisibilityStyle } from '../styling/visibility-style';
 
 const defaultMixedContent = {
     ItemIdsOrdered:null,
@@ -26,28 +23,24 @@ const defaultMixedContent = {
 
 export async function ChangePassword(props: WidgetContext<ChangePasswordEntity>) {
     const entity = {
-        PostLoginRedirectPage: defaultMixedContent,
-        RegistrationPage: defaultMixedContent,
-        ResetPasswordPage: defaultMixedContent,
-        PostLoginAction: 0,
-        Header: 'Login',
-        EmailLabel: 'Email / Username',
-        PasswordLabel: 'Password',
-        SubmitButtonLabel: 'Log in',
-        ErrorMessage: 'Incorrect credentials.',
-        RememberMeLabel: 'Remember me',
-        ForgottenPasswordLinkLabel: 'Forgotten password',
-        NotRegisteredLabel: 'Not registered yet?',
-        RegisterLinkText: 'Register now',
-        ExternalProvidersHeader: 'or use account in...',
+        PostPasswordChangeRedirectPage: defaultMixedContent,
+        PostPasswordChangeMessage:  'Your password was changed successfully!',
+        Header: 'Change password',
+        CurrentPassword: 'Current password',
+        NewPassword: 'New password',
+        ConfirmPassword: 'Repeat new password',
+        SubmitButtonLabel: 'Save',
+        LoginFirstMessage: 'You need to be logged in to change your password.',
         ValidationRequiredMessage: 'All fields are required.',
-        ValidationInvalidEmailMessage: 'Invalid email format.',
+        ValidationMismatchMessage: 'New password and repeat password don\'t match.',
+        ExternalProviderMessageFormat: 'Your profile does not store any passwords, because you are registered with ',
         ...props.model.Properties
     };
     const context = props.requestContext;
     const dataAttributes = htmlAttributes(props);
     const defaultClass =  entity.CssClass;
     const marginClass = entity.Margins && StyleGenerator.getMarginClasses(entity.Margins);
+    const webServicePath =  process.env.SF_WEB_SERVICE_PATH;
 
     dataAttributes['className'] = classNames(
         defaultClass,
@@ -57,118 +50,85 @@ export async function ChangePassword(props: WidgetContext<ChangePasswordEntity>)
     dataAttributes['data-sfhasquickeditoperation'] = true;
 
     const viewModel: any = {
-        LoginHandlerPath: '/sitefinity/login-handler',
-        RememberMe: entity.RememberMe,
-        MembershipProviderName: entity.MembershipProviderName,
+        ChangePasswordHandlerPath: `${webServicePath}/ChangePassword`,
         Attributes: entity.Attributes,
         Labels: {}
     };
 
-    if (entity.ExternalProviders && entity.ExternalProviders.length){
-        const argsLocal = {
-            Name: 'Default.GetExternalProviders'
-        };
-        const externalProviders: any = await RestService.getUnboundType(argsLocal);
-        viewModel.ExternalProviders = externalProviders.value.filter((p: ExternalProvider) => entity.ExternalProviders?.indexOf(p.Name) !== -1);
-    }
-
-    viewModel.Labels.EmailLabel = entity.EmailLabel;
-    viewModel.Labels.ErrorMessage = entity.ErrorMessage;
-    viewModel.Labels.ExternalProvidersHeader = entity.ExternalProvidersHeader;
-    viewModel.Labels.ForgottenPasswordLinkLabel = entity.ForgottenPasswordLinkLabel;
     viewModel.Labels.Header = entity.Header;
-    viewModel.Labels.NotRegisteredLabel = entity.NotRegisteredLabel;
-    viewModel.Labels.PasswordLabel = entity.PasswordLabel;
-    viewModel.Labels.RegisterLinkText = entity.RegisterLinkText;
-    viewModel.Labels.RememberMeLabel = entity.RememberMeLabel;
+    viewModel.Labels.OldPassword = entity.CurrentPassword;
+    viewModel.Labels.NewPassword = entity.NewPassword;
+    viewModel.Labels.RepeatPassword = entity.ConfirmPassword;
     viewModel.Labels.SubmitButtonLabel = entity.SubmitButtonLabel;
-    viewModel.Labels.ValidationInvalidEmailMessage = entity.ValidationInvalidEmailMessage;
+    viewModel.Labels.LoginFirstMessage = entity.LoginFirstMessage;
     viewModel.Labels.ValidationRequiredMessage = entity.ValidationRequiredMessage;
+    viewModel.Labels.ValidationMismatchMessage = entity.ValidationMismatchMessage;
+    viewModel.Labels.ExternalProviderMessageFormat = entity.ExternalProviderMessageFormat;
     viewModel.VisibilityClasses = StylingConfig.VisibilityClasses;
     viewModel.InvalidClass = StylingConfig.InvalidClass;
 
-    const postLoginRedirectVariations = (entity.PostLoginRedirectPage.Content)[0].Variations;
-    if (entity.PostLoginAction === PostLoginAction.RedirectToPage
-    && postLoginRedirectVariations && postLoginRedirectVariations.length !== 0){
-        const mainFilter = FilterConverterService.getMainFilter(postLoginRedirectVariations[0]);
-        const pageNodes = await RestExtensionsService.getContextItems(entity.PostLoginRedirectPage, {
-            Type: RestSdkTypes.Pages,
-            Fields: ['ViewUrl'],
-            Filter: mainFilter
-        });
-        const items = pageNodes.Items;
-        if (items.length === 1){
-            viewModel.RedirectUrl =  items[0].ViewUrl;
-        }
+
+    viewModel.PostPasswordChangeAction = entity.PostPasswordChangeAction;
+
+    const argsLocal = {
+        Name: 'users/current'
+    };
+    const user: any = await RestService.getUnboundType(argsLocal);
+
+    viewModel.ExternalProviderName = user?.ExternalProviderName;
+
+    if (entity.PostPasswordChangeAction === PostPasswordChangeAction.RedirectToPage) {
+
+            viewModel.RedirectUrl = RestExtensionsService.getPageNodeUrl(entity.PostPasswordChangeRedirectPage);
+    } else {
+        viewModel.PostPasswordChangeMessage = entity.PostPasswordChangeMessage;
     }
 
-    const registrationVariations = (entity.RegistrationPage.Content)[0].Variations;
-    if (registrationVariations && registrationVariations.length !== 0){
-        const mainFilter = FilterConverterService.getMainFilter(registrationVariations[0]);
-        const pageNodes = await RestExtensionsService.getContextItems(entity.RegistrationPage, {
-            Type: RestSdkTypes.Pages,
-            Fields: ['ViewUrl'],
-            Filter: mainFilter
-        });
-
-        const items = pageNodes.Items;
-        if (items.length === 1){
-            viewModel.RegistrationLink =  items[0].ViewUrl;
-        }
-    }
-
-    const resetPasswordVariations = (entity.ResetPasswordPage.Content)[0].Variations;
-    if (resetPasswordVariations && resetPasswordVariations.length !== 0){
-        const mainFilter = FilterConverterService.getMainFilter(resetPasswordVariations[0]);
-        const pageNodes = await RestExtensionsService.getContextItems(entity.ResetPasswordPage, {
-            Type: RestSdkTypes.Pages,
-            Fields: ['ViewUrl'],
-            Filter: mainFilter
-        });
-
-        const items = pageNodes.Items;
-        if (items.length === 1){
-            viewModel.ForgottenPasswordLink = items[0].ViewUrl;
-        }
-    }
-
+    const hasUser = user || user.Identity || !user.Identity.IsAuthenticated;
     const labels = viewModel.Labels;
-    const usernameInputId = getUniqueId('sf-username-');
-    const passwordInputId = getUniqueId('sf-password-');
-    const rememberInputId = getUniqueId('sf-rememeber-');
+    const oldPasswordInputId = getUniqueId('sf-old-password-');
+    const newPasswordInputId = getUniqueId('sf-new-password-');
+    const repeatPasswordInputId = getUniqueId('sf-repeat-password-');
 
     return (
       <div
+        data-sf-role="sf-change-password-container"
+        data-sf-visibility-hidden={viewModel.VisibilityClasses[VisibilityStyle.Hidden]}
+        data-sf-invalid={viewModel.InvalidClass}
         {...dataAttributes}
         >
-        <FormContainer viewModel={viewModel} context={context}
-          usernameInputId={usernameInputId}
-          passwordInputId={passwordInputId}
-          rememberInputId={rememberInputId}
-             />
-        {viewModel.RegistrationLink &&
-        <div className="row mt-3">
-          <div className="col-md-6">{labels.NotRegisteredLabel}</div>
-          <div className="col-md-6 text-end"><a href={viewModel.RegistrationLink}
-            className="text-decoration-none">{labels.RegisterLinkText}</a></div>
-        </div>
-    }
+        { hasUser
+        ? <div className="alert alert-danger my-3">{labels.LoginFirstMessage}</div>
+        : viewModel.ExternalProviderName
+            ? <div>{`${labels.ExternalProviderMessageFormat}${viewModel.ExternalProviderName}`}</div>
+            :  <>
+              <form action={viewModel.ChangePasswordHandlerPath} method="post" role="form">
+                <h2 className="mb-3">{labels.Header}</h2>
+                <div data-sf-role="error-message-container" className="alert alert-danger my-3 d-none" role="alert" aria-live="assertive" />
+                <div data-sf-role="success-message-container" className="alert alert-success my-3 d-none" role="alert" aria-live="assertive" />
+                <div className="mb-3">
+                  <label htmlFor={oldPasswordInputId} className="form-label">{labels.OldPassword}</label>
+                  <input type="password" className="form-control" id={oldPasswordInputId} name="OldPassword" data-sf-role="required" />
+                </div>
+                <div className="mb-3">
+                  <label htmlFor={newPasswordInputId} className="form-label">{labels.NewPassword}</label>
+                  <input type="password" className="form-control" id={newPasswordInputId} name="NewPassword" data-sf-role="required" />
+                </div>
+                <div className="mb-3">
+                  <label htmlFor={repeatPasswordInputId} className="form-label">{labels.RepeatPassword}</label>
+                  <input type="password" className="form-control" id={repeatPasswordInputId} name="RepeatPassword" data-sf-role="required" />
+                </div>
 
-        {viewModel.ExternalProviders && viewModel.ExternalProviders.length &&
+                <input className="btn btn-primary w-100" type="submit" value={labels.SubmitButtonLabel} />
+              </form>
 
-        [<h3 key={100} className="mt-3">{labels.ExternalProvidersHeader}</h3>,
-            viewModel.ExternalProviders.map((provider: ExternalProvider, idx: number) => {
-                const providerClass = ExternalLoginBase.GetExternalLoginButtonCssClass(provider.Name);
-                const providerHref = ExternalLoginBase.GetExternalLoginPath(context, provider.Name);
-
-                return (
-                  <a key={idx}
-                    className={classNames('btn border fs-5 w-100 mt-2',providerClass)}
-                    href={providerHref}>{provider.Value}</a>
-                );
-            })
-        ]
-    }
+              <input type="hidden" name="redirectUrl" value={viewModel.RedirectUrl} />
+              <input type="hidden" name="postChangeMessage" value={viewModel.PostPasswordChangeMessage} />
+              <input type="hidden" name="postChangeAction" value={viewModel.PostPasswordChangeAction} />
+              <input type="hidden" name="validationRequiredMessage" value={labels.ValidationRequiredMessage} />
+              <input type="hidden" name="validationMismatchMessage" value={labels.ValidationMismatchMessage} />
+            </>
+        }
       </div>
     );
 }
@@ -177,24 +137,17 @@ export class ChangePasswordEntity {
     Attributes?: any[];
     CssClass?: string;
     Margins?: OffsetStyle;
-    PostLoginAction?: PostLoginAction;
-    PostLoginRedirectPage?: MixedContentContext;
-    RegistrationPage?: MixedContentContext;
-    ResetPasswordPage?: MixedContentContext;
-    RememberMe?: boolean;
-    ExternalProviders?: string[];
+    PostPasswordChangeAction?: PostPasswordChangeAction;
+    PostPasswordChangeRedirectPage?: MixedContentContext;
     SfViewName?: string;
-    MembershipProviderName?: string;
+    PostPasswordChangeMessage?: string;
     Header?: string;
-    EmailLabel?: string;
-    PasswordLabel?: string;
+    CurrentPassword?: string;
+    NewPassword?: string;
+    ConfirmPassword?: string;
     SubmitButtonLabel?: string;
-    ErrorMessage?: string;
-    RememberMeLabel?: string;
-    ForgottenPasswordLinkLabel?: string;
-    NotRegisteredLabel?: string;
-    RegisterLinkText?: string;
-    ExternalProvidersHeader?: string;
+    LoginFirstMessage?: string;
     ValidationRequiredMessage?: string;
-    ValidationInvalidEmailMessage?: string;
+    ValidationMismatchMessage?: string;
+    ExternalProviderMessageFormat?: string;
 }
